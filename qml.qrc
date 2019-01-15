@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>EcTerminal.qml</file>
+        <file>Style.qml</file>
+        <file>FanModes.qml</file>
+    </qresource>
+</RCC>
