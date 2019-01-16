@@ -1,6 +1,7 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.4
+import QtCharts 2.3
 
 Window {
     id: root
@@ -54,29 +55,28 @@ Window {
         width: 100
         height: parent.height
     }
-    Row{
-        spacing: parent.width * .05
-        x: terminal.width + parent.width * .05
-        y: parent.height * 0.05
-        Button{
-            width: 50
-            height: 50
-            font.pointSize: 10
-            text: "Silent"
-        }
-
-        Button{
-            width: 50
-            height: 50
-            font.pointSize: 10
-            text: "Normal"
-        }
-
-        Button{
-            width: 50
-            height: 50
-            font.pointSize: 10
-            text: "Cool"
+    FanModes{
+        id: fanmode
+        anchors.left: terminal.right
+        width: root.width - terminal.width
+        height: 60//root.height
+    }
+    ChartView{
+        //title: "line"
+        anchors.top: fanmode.bottom
+        anchors.left: terminal.right
+        width: parent.width - terminal.width
+        height: parent.height - fanmode.height
+        backgroundColor: "transparent"
+        LineSeries {
+            name: "wat  "
+            XYPoint { x: 0; y: 0 }
+            XYPoint { x: 1.1; y: 2.1 }
+            XYPoint { x: 1.9; y: 3.3 }
+            XYPoint { x: 2.1; y: 2.1 }
+            XYPoint { x: 2.9; y: 4.9 }
+            XYPoint { x: 3.4; y: 3.0 }
+            XYPoint { x: 4.1; y: 3.3 }
         }
     }
 }

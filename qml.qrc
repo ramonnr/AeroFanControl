@@ -4,5 +4,6 @@
         <file>EcTerminal.qml</file>
         <file>Style.qml</file>
         <file>FanModes.qml</file>
+        <file>FanButton.qml</file>
     </qresource>
 </RCC>
