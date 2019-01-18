@@ -59,6 +59,10 @@ Item{
             onClicked: ECData.setNormal()
         }
         //TODO - this
-        FanButton{  btext: "Cool";     selected: ECData.mode === FanState.Cool    }
+        FanButton{
+            btext: "Cool"
+            selected: ECData.mode === FanState.Cool
+            onClicked: ECData.setCool()
+        }
     }
 }

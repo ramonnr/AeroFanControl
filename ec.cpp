@@ -19,7 +19,8 @@ void EC::envCheck(void){
     if(!m_ecFile.exists()){
         emit warning("Unexpected environment",
                      "Embedded controller file not found\n"
-                     "You sure this is an Aero machine running linux?\n"
+                     "This program must run with root privileges\n"
+                     "Are you sure this is an Aero machine running linux?\n"
                      "The program will still run, it's just not going to do anything meaningful");
     }
 
@@ -43,31 +44,39 @@ void EC::setCool(){
 
 void EC::setMode(const FanState::State& nextMode){
     if(m_mode == nextMode) {return;}
+    if(!m_ecFile.exists()) {return;}
     std::lock_guard<std::mutex> lck(m_mut);
     if(m_ecFile.isOpen()){
         m_ecFile.close();
     }
     m_ecFile.open(QIODevice::WriteOnly | QIODevice::Append);
-    const uint8_t offset = [&]{
-        if(nextMode == FanState::State::Silent)return static_cast<uint8_t>(0x08);
-        else if(nextMode == FanState::State::Normal)return static_cast<uint8_t>(0x08);
-        else return static_cast<uint8_t>(0x09);
-    }();
-    m_ecFile.seek(offset);
-    const uint8_t writeVal = [&]{
-        if(nextMode == FanState::State::Silent){
-            return uint8_t{0x40};
-        }
-        else{
-            return uint8_t{0};
-        }
-    }();
+
+    //there are to bytes of interest, offst 0x08 and 0x0C
+    //for silent 0x08 := 0x40 & 0x0C := 0x0
+    //for normal 0x08 := 0x0  & 0x0C := 0x0
+    //for cool   0x08 := 0x0  & 0x0C := 0x90
+    const quint8 silentOffset = 0x08;
+    const quint8 coolOffset   = 0x0C;
+    m_ecFile.seek(silentOffset);
     QDataStream qs(&m_ecFile);
-    qs << writeVal;
+    if(nextMode == FanState::State::Silent){
+        qs << quint8{0x40};
+    }
+    else{
+        qs << quint8{0x00};
+    }
+    m_ecFile.seek(coolOffset);
+    if(nextMode == FanState::State::Cool){
+        qs << quint8{0x90};
+    }
+    else{
+        qs << quint8{0x00};
+    }
     m_ecFile.close();
 }
 
 void EC::update(){
+    if(!m_ecFile.exists()){return;}
     while(!m_killSignal){
         QByteArray rbuf;
         {
@@ -82,13 +91,15 @@ void EC::update(){
         for(auto i = 0; i < qMin(m_valuesHex.size(),rbuf.size()); i++){
             m_valuesHex[i] = QString::number(static_cast<quint8>(rbuf[i]),16).toUpper();
         }
+
+        auto silentSet = [&]()->bool{return static_cast<quint8>(rbuf[0x08]) == static_cast<quint8>(0x40);};
+        auto coolSet   = [&]()->bool{return static_cast<quint8>(rbuf[0x0C]) == static_cast<quint8>(0x90);};
         auto prevMode = m_mode;
         //check modes
-        if( (rbuf[8] & 0x40) != 0){
-            m_mode = FanState::State::Silent;
-        }else{
-            m_mode = FanState::State::Normal;
-        }
+        if(silentSet() && !coolSet())       {m_mode = FanState::State::Silent;}
+        else if(!silentSet() && !coolSet()) {m_mode = FanState::State::Normal;}
+        else if(!silentSet() && coolSet())  {m_mode = FanState::State::Cool;}
+        else                                {/*I just dont know man*/}
         if(prevMode != m_mode){emit modeChanged();}
         //update fangraph
         //each fan is usgin 2B, fan 0 -> [0xFC,0xFD], fan 1 -> [0xFE,0xFF]
