@@ -6,11 +6,14 @@ Item {
     id: terminalRoot
     width: parent.width
     height: parent.height
+    property alias radius: background.radius
 
     Rectangle{
+        id:background
         width: terminalRoot.width
         height: terminalRoot.height
         color: Style.terminalBackground
+        //opacity: 0.8
     }
 
     GridView {

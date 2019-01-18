@@ -44,11 +44,6 @@ Item{
 
     Row{
         id: row
-        //width: parent.width
-        //height: parent.height
-        Component.onCompleted: {
-            console.log("wdith => " + width)
-        }
         anchors.fill: parent
         anchors.leftMargin: parent.width * .1
         anchors.topMargin: 10//parent.height * .05
@@ -63,6 +58,7 @@ Item{
             selected: ECData.mode === FanState.Normal
             onClicked: ECData.setNormal()
         }
+        //TODO - this
         FanButton{  btext: "Cool";     selected: ECData.mode === FanState.Cool    }
     }
 }

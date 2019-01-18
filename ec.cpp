@@ -15,6 +15,15 @@ EC::~EC(){
     m_killSignal = true;
 }
 
+void EC::envCheck(void){
+    if(!m_ecFile.exists()){
+        emit warning("Unexpected environment",
+                     "Embedded controller file not found\n"
+                     "You sure this is an Aero machine running linux?\n"
+                     "The program will still run, it's just not going to do anything meaningful");
+    }
+
+}
 
 QStringList EC::getECData(void){
     return m_valuesHex;
@@ -34,9 +43,11 @@ void EC::setCool(){
 
 void EC::setMode(const FanState::State& nextMode){
     if(m_mode == nextMode) {return;}
-    if(!m_ecFile.isOpen()){
-        m_ecFile.open(QIODevice::WriteOnly | QIODevice::Append);
+    std::lock_guard<std::mutex> lck(m_mut);
+    if(m_ecFile.isOpen()){
+        m_ecFile.close();
     }
+    m_ecFile.open(QIODevice::WriteOnly | QIODevice::Append);
     const uint8_t offset = [&]{
         if(nextMode == FanState::State::Silent)return static_cast<uint8_t>(0x08);
         else if(nextMode == FanState::State::Normal)return static_cast<uint8_t>(0x08);
@@ -58,17 +69,18 @@ void EC::setMode(const FanState::State& nextMode){
 
 void EC::update(){
     while(!m_killSignal){
-        if(!m_ecFile.isOpen()){
-            m_ecFile.open(QIODevice::ReadOnly);
-        }
-        QByteArray rbuf = m_ecFile.readAll();
-        m_ecFile.close();
-        for(auto i = 0; i < qMin(m_valuesHex.size(),rbuf.size()); i++){
-            m_valuesHex[i] = QString::number(static_cast<int>(rbuf[i]),16).toUpper();
-            //filter garbage
-            if(m_valuesHex[i].size() > 2){
-                m_valuesHex[i] = "" + m_valuesHex[i][m_valuesHex[i].size()-2] + m_valuesHex[i][m_valuesHex[i].size()-1];
+        QByteArray rbuf;
+        {
+            std::lock_guard<std::mutex> lck(m_mut);
+            if(m_ecFile.isOpen()){
+                m_ecFile.close();
             }
+            m_ecFile.open(QIODevice::ReadOnly);
+            rbuf = m_ecFile.readAll();
+            m_ecFile.close();
+        }
+        for(auto i = 0; i < qMin(m_valuesHex.size(),rbuf.size()); i++){
+            m_valuesHex[i] = QString::number(static_cast<quint8>(rbuf[i]),16).toUpper();
         }
         auto prevMode = m_mode;
         //check modes
@@ -78,8 +90,12 @@ void EC::update(){
             m_mode = FanState::State::Normal;
         }
         if(prevMode != m_mode){emit modeChanged();}
-        //this one will change on every run, don't bother checking for is actual change
+        //update fangraph
+        //each fan is usgin 2B, fan 0 -> [0xFC,0xFD], fan 1 -> [0xFE,0xFF]
+        emit fanSpeed(0,(m_valuesHex[0xFC] + m_valuesHex[0xFD]).toInt(nullptr,16));
+        emit fanSpeed(1,(m_valuesHex[0xFE] + m_valuesHex[0xFF]).toInt(nullptr,16));
+        emit cpuTemp(m_valuesHex[0x60].toInt(nullptr,16));
         emit modelChanged();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     }
 }

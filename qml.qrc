@@ -5,5 +5,7 @@
         <file>Style.qml</file>
         <file>FanModes.qml</file>
         <file>FanButton.qml</file>
+        <file>FanGraph.qml</file>
+        <file>Warning.qml</file>
     </qresource>
 </RCC>

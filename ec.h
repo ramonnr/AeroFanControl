@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QFile>
+#include <mutex>
 
 class FanState : public QObject{
     Q_OBJECT
@@ -26,12 +27,16 @@ public:
     const std::array<uint8_t, 256> read();
     void write(uint8_t, uint8_t);
     QStringList getECData(void);
+    void envCheck(void);
     Q_INVOKABLE void setSilent();
     Q_INVOKABLE void setNormal();
     Q_INVOKABLE void setCool();
 signals:
     void modelChanged(void);
     void modeChanged(void);
+    void fanSpeed(int fan, int speed);
+    void cpuTemp(int temp);
+    void warning(QString title, QString body);
 private:
     void setMode(const FanState::State&);
     void update(void);
@@ -42,6 +47,7 @@ private:
     bool m_normal = false;
     bool m_cool = false;
     FanState::State m_mode = FanState::State::Normal;
+    std::mutex m_mut;
 };
 
 
